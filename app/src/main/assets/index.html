@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#176b55"><title>收支记账</title>
+<style>
+:root{--bg:#f4f6f7;--ink:#17212b;--muted:#718096;--green:#176b55;--line:#e6eaed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,"Noto Sans SC",sans-serif;padding-bottom:78px}
+header{background:linear-gradient(135deg,#176b55,#258b70);color:white;padding:20px 17px 18px;position:sticky;top:0;z-index:5}
+header h1{font-size:21px;margin:0 0 5px}header p{margin:0;font-size:12px;opacity:.85}
+main{max-width:720px;margin:auto;padding:14px}
+.panel{background:white;border-radius:15px;padding:15px;margin-bottom:13px;box-shadow:0 2px 12px #162b3810}
+h2{font-size:17px;margin:0 0 13px}.muted{color:var(--muted);font-size:12px}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:9px 4px calc(9px + env(safe-area-inset-bottom));z-index:10}
+.tabs button{border:0;background:none;color:#73808b;font-size:12px;padding:4px 8px}.tabs button b{display:block;font-size:20px;font-weight:500}.tabs button.active{color:var(--green);font-weight:700}
+label{display:block;font-size:13px;color:#53616c;margin:10px 0 5px}
+input,select,textarea{width:100%;border:1px solid #dce2e6;border-radius:10px;padding:11px 10px;background:white;color:#18232b;font:inherit;min-height:43px}
+textarea{min-height:65px;resize:vertical}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button.primary,.action{border:0;border-radius:10px;background:var(--green);color:white;padding:12px 15px;font:inherit;font-weight:650}
+button.secondary{border:1px solid #dce2e6;border-radius:10px;background:white;padding:10px 12px;color:#334}
+button.danger{border:1px solid #f0caca;background:#fff6f6;color:#c33;border-radius:9px;padding:7px 10px}
+.module-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.module{border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px;text-align:left}
+.module strong{display:block;font-size:15px}.module small{color:var(--muted)}
+.color-orange{color:#d97706}.color-blue{color:#2563eb}.color-green{color:#16a34a}.color-purple{color:#9333ea}.color-red{color:#dc2626}
+.tag{display:inline-block;border-radius:20px;padding:4px 8px;font-size:12px;font-weight:650}
+.t-orange{background:#fff0dc;color:#d97706}.t-blue{background:#e5f0ff;color:#2563eb}.t-green{background:#e1f7e9;color:#16a34a}.t-purple{background:#f1e8ff;color:#9333ea}.t-red{background:#ffe7e7;color:#dc2626}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{padding:12px;border-radius:12px;background:#f7f9fa}.metric small{display:block;color:var(--muted)}.metric strong{display:block;font-size:20px;margin-top:4px;overflow-wrap:anywhere}
+.entry{border-bottom:1px solid var(--line);padding:12px 0}.entry:last-child{border:0}.entry-top{display:flex;justify-content:space-between;gap:10px}.amount{font-weight:750;font-size:17px;white-space:nowrap}.entry-meta{font-size:12px;color:var(--muted);margin-top:5px}.entry-actions{display:flex;gap:7px;margin-top:8px}
+.rowline{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);gap:10px}.rowline:last-child{border:0}
+.hidden{display:none!important}.hint{font-size:12px;color:var(--muted);line-height:1.6}.empty{text-align:center;color:#8a969f;padding:25px 8px}
+@media(min-width:600px){main{padding:20px}.module-list{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>收支记账</h1><p>进货 · 生活 · 收入 · 业务 · 家庭，一笔一笔记清楚</p></header>
+<main>
+<section id="page-home">
+ <div class="panel">
+  <h2>本月收支概览</h2>
+  <div class="cards">
+   <div class="metric"><small>本月收入</small><strong id="homeIncome" style="color:#16a34a">¥0.00</strong></div>
+   <div class="metric"><small>本月支出</small><strong id="homeExpense" style="color:#dc2626">¥0.00</strong></div>
+   <div class="metric"><small>本月结余</small><strong id="homeBalance">¥0.00</strong></div>
+   <div class="metric"><small>累计记账笔数</small><strong id="homeCount">0</strong></div>
+  </div>
+ </div>
+ <div class="panel"><h2>快速记账</h2><div class="module-list" id="moduleButtons"></div></div>
+ <div class="panel"><h2>最近记录</h2><div id="recentList"></div></div>
+</section>
+
+<section id="page-add" class="hidden">
+ <div class="panel">
+  <h2 id="formTitle">新增账目</h2>
+  <input type="hidden" id="editId">
+  <label>账目类型</label><select id="type"></select>
+  <div class="grid">
+   <div><label>日期</label><input type="date" id="date"></div>
+   <div><label>金额（元）</label><input type="number" id="amount" min="0" step="0.01" placeholder="请输入金额"></div>
+  </div>
+  <label>具体分类</label><input id="category" list="categoryOptions" placeholder="选择或输入分类"><datalist id="categoryOptions"></datalist>
+  <div id="clientWrap"><label>客户 / 业务对象（业务支出可填写）</label><input id="client" list="clientOptions" placeholder="输入客户名称"><datalist id="clientOptions"></datalist></div>
+  <label>摘要 / 说明</label><textarea id="note" placeholder="例如：购买配件、客户维修材料费……"></textarea>
+  <div style="display:flex;gap:9px;margin-top:15px"><button class="primary" style="flex:1" onclick="saveEntry()">保存账目</button><button class="secondary" onclick="resetForm()">清空</button></div>
+ </div>
+ <div class="panel"><h2>分类提示</h2><p class="hint">分类可以直接输入新名称，也可以从已有分类中选择。业务支出可填写客户名称，之后可以按客户汇总。</p></div>
+</section>
+
+<section id="page-list" class="hidden">
+ <div class="panel">
+  <h2>账目明细</h2>
+  <div class="grid"><div><label>开始日期</label><input type="date" id="fromDate" onchange="renderList()"></div><div><label>结束日期</label><input type="date" id="toDate" onchange="renderList()"></div></div>
+  <div class="grid"><div><label>账目类型</label><select id="filterType" onchange="renderList()"><option value="">全部类型</option></select></div><div><label>分类 / 客户搜索</label><input id="searchText" placeholder="输入关键词" oninput="renderList()"></div></div>
+  <div id="listSummary" class="hint" style="margin-top:10px"></div><div id="entryList"></div>
+ </div>
+</section>
+
+<section id="page-stats" class="hidden">
+ <div class="panel">
+  <h2>统计报表</h2>
+  <label>统计周期</label><select id="period" onchange="renderStats()"><option value="day">按日统计</option><option value="month" selected>按月统计</option><option value="year">按年统计</option><option value="all">全部累计</option></select>
+  <div class="grid"><div><label>选择日期</label><input type="date" id="statsDate" onchange="renderStats()"></div><div><label>指定账目类型</label><select id="statsType" onchange="renderStats()"><option value="">全部类型</option></select></div></div>
+  <div class="cards" style="margin-top:12px">
+   <div class="metric"><small>收入合计</small><strong id="statIncome" style="color:#16a34a">¥0.00</strong></div>
+   <div class="metric"><small>支出合计</small><strong id="statExpense" style="color:#dc2626">¥0.00</strong></div>
+   <div class="metric"><small>收支结余</small><strong id="statBalance">¥0.00</strong></div>
+   <div class="metric"><small>记录笔数</small><strong id="statCount">0</strong></div>
+  </div>
+ </div>
+ <div class="panel"><h2>各模块汇总</h2><div id="typeStats"></div></div>
+ <div class="panel"><h2>分类汇总</h2><div id="categoryStats"></div></div>
+ <div class="panel"><h2>客户业务支出汇总</h2><div id="clientStats"></div></div>
+</section>
+
+<section id="page-settings" class="hidden">
+ <div class="panel"><h2>分类管理</h2><label>选择模块</label><select id="manageType" onchange="renderCategories()"></select><label>新增分类</label><div style="display:flex;gap:8px"><input id="newCategory" placeholder="输入分类名称"><button class="primary" onclick="addCategory()">添加</button></div><div id="categoryManage" style="margin-top:10px"></div></div>
+ <div class="panel"><h2>数据备份与恢复</h2><p class="hint">账目保存在本机浏览器中。建议定期导出备份；清理浏览器数据或卸载应用前，请先备份。</p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="exportData()">导出备份</button><button class="secondary" onclick="document.getElementById('importFile').click()">导入备份</button><button class="secondary" onclick="exportCSV()">导出CSV表格</button></div><input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)"></div>
+ <div class="panel"><h2>数据安全</h2><button class="danger" onclick="clearAll()">清空全部账目</button><p class="hint">清空操作不可恢复，请先导出备份。</p></div>
+</section>
+</main>
+<nav class="tabs">
+ <button class="active" data-page="home" onclick="showPage('home')"><b>⌂</b>首页</button>
+ <button data-page="add" onclick="showPage('add')"><b>＋</b>记账</button>
+ <button data-page="list" onclick="showPage('list')"><b>▤</b>明细</button>
+ <button data-page="stats" onclick="showPage('stats')"><b>▥</b>统计</button>
+ <button data-page="settings" onclick="showPage('settings')"><b>⚙</b>设置</button>
+</nav>
+<script>
+const TYPES=[
+ {id:'purchase',name:'进货支出',color:'orange',expense:true,defaults:['货物采购','配件材料','供应商货款','运费','其他进货']},
+ {id:'living',name:'生活支出',color:'blue',expense:true,defaults:['餐饮','购物','交通','水电燃气','通讯','日常用品','其他生活']},
+ {id:'income',name:'每月收入',color:'green',expense:false,defaults:['工资收入','经营收入','安装收入','维修收入','其他收入']},
+ {id:'business',name:'业务支出',color:'purple',expense:true,defaults:['人工费','运输费','业务招待','客户材料费','差旅费','其他业务']},
+ {id:'family',name:'家庭款',color:'red',expense:true,defaults:['家庭生活','孩子教育','医疗费用','房屋支出','家庭购物','其他家庭']}
+];
+const KEY='simple_account_book_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{entries:[],categories:{},clients:[]};
+TYPES.forEach(t=>{if(!db.categories[t.id])db.categories[t.id]=[...t.defaults]});
+const $=id=>document.getElementById(id), money=n=>'¥'+Number(n||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const typeOf=id=>TYPES.find(t=>t.id===id)||TYPES[0];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function persist(){localStorage.setItem(KEY,JSON.stringify(db))}
+function init(){
+ const opts=TYPES.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+ $('type').innerHTML=opts;$('filterType').innerHTML+='<option value="purchase">进货支出</option><option value="living">生活支出</option><option value="income">每月收入</option><option value="business">业务支出</option><option value="family">家庭款</option>';
+ $('statsType').innerHTML+=$('filterType').innerHTML.replace('<option value="">全部类型</option>','');
+ $('manageType').innerHTML=opts;$('date').value=today();$('statsDate').value=today();
+ $('type').addEventListener('change',updateCategoryOptions);$('manageType').value='purchase';
+ updateCategoryOptions();renderAll();renderCategories();
+}
+function today(){let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function showPage(p){document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));$('page-'+p).classList.remove('hidden');document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));if(p==='stats')renderStats();if(p==='list')renderList();if(p==='home')renderHome();if(p==='settings')renderCategories()}
+function updateCategoryOptions(){let id=$('type').value;let cats=db.categories[id]||[];$('categoryOptions').innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join('');$('clientWrap').style.display=id==='business'?'block':'none'}
+function moduleButtons(){$('moduleButtons').innerHTML=TYPES.map(t=>`<button class="module" onclick="newEntry('${t.id}')"><strong class="color-${t.color}">${t.name}</strong><small>${t.expense?'记录支出':'记录收入'}</small></button>`).join('')}
+function newEntry(type){resetForm();$('type').value=type;updateCategoryOptions();showPage('add')}
+function resetForm(){$('editId').value='';$('formTitle').textContent='新增账目';$('date').value=today();$('amount').value='';$('category').value='';$('client').value='';$('note').value='';$('type').value='purchase';updateCategoryOptions()}
+function saveEntry(){
+ const type=$('type').value,date=$('date').value,amount=Number($('amount').value),category=$('category').value.trim();
+ if(!date||!category||!Number.isFinite(amount)||amount<=0){alert('请填写日期、分类和大于0的金额');return}
+ const id=$('editId').value||String(Date.now())+Math.random().toString(16).slice(2);
+ const e={id,type,date,amount:Math.round(amount*100)/100,category,client:type==='business'?$('client').value.trim():'',note:$('note').value.trim()};
+ const i=db.entries.findIndex(x=>x.id===id);if(i>=0)db.entries[i]=e;else db.entries.push(e);
+ if(!db.categories[type].includes(category))db.categories[type].push(category);
+ if(e.client&&!db.clients.includes(e.client))db.clients.push(e.client);
+ persist();resetForm();renderAll();showPage('home');alert('保存成功');
+}
+function editEntry(id){let e=db.entries.find(x=>x.id===id);if(!e)return;showPage('add');$('editId').value=e.id;$('formTitle').textContent='修改账目';$('type').value=e.type;updateCategoryOptions();$('date').value=e.date;$('amount').value=e.amount;$('category').value=e.category;$('client').value=e.client||'';$('note').value=e.note||''}
+function deleteEntry(id){if(!confirm('确定删除这笔账目？'))return;db.entries=db.entries.filter(e=>e.id!==id);persist();renderAll()}
+function entryHTML(e){let t=typeOf(e.type);return `<div class="entry"><div class="entry-top"><div><span class="tag t-${t.color}">${t.name}</span> <b class="color-${t.color}">${esc(e.category)}</b></div><div class="amount ${t.expense?'color-red':'color-green'}">${t.expense?'-':'+'}${money(e.amount)}</div></div><div class="entry-meta">${esc(e.date)}${e.client?' · 客户：'+esc(e.client):''}${e.note?' · '+esc(e.note):''}</div><div class="entry-actions"><button class="secondary" onclick="editEntry('${e.id}')">编辑</button><button class="danger" onclick="deleteEntry('${e.id}')">删除</button></div></div>`}
+function renderHome(){
+ let m=today().slice(0,7),arr=db.entries.filter(e=>e.date.startsWith(m)),inc=sum(arr.filter(e=>!typeOf(e.type).expense)),out=sum(arr.filter(e=>typeOf(e.type).expense));
+ $('homeIncome').textContent=money(inc);$('homeExpense').textContent=money(out);$('homeBalance').textContent=money(inc-out);$('homeCount').textContent=db.entries.length;
+ $('recentList').innerHTML=db.entries.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).slice(0,5).map(entryHTML).join('')||'<div class="empty">还没有账目，点击上方模块开始记账</div>';
+}
+function sum(a){return a.reduce((s,e)=>s+Number(e.amount||0),0)}
+function renderList(){
+ let a=db.entries.filter(e=>(!$('fromDate').value||e.date>=$('fromDate').value)&&(!$('toDate').value||e.date<=$('toDate').value)&&(!$('filterType').value||e.type===$('filterType').value));
+ let q=$('searchText').value.trim().toLowerCase();if(q)a=a.filter(e=>[e.category,e.client,e.note].join(' ').toLowerCase().includes(q));
+ a.sort((x,y)=>y.date.localeCompare(x.date)||y.id.localeCompare(x.id));
+ $('listSummary').textContent=`共 ${a.length} 笔 · 金额合计 ${money(sum(a))}`;
+ $('entryList').innerHTML=a.map(entryHTML).join('')||'<div class="empty">没有符合条件的记录</div>';
+}
+function inPeriod(e,p,d){if(p==='all')return true;if(p==='day')return e.date===d;if(p==='month')return e.date.slice(0,7)===d.slice(0,7);return e.date.slice(0,4)===d.slice(0,4)}
+function renderStats(){
+ let p=$('period').value,d=$('statsDate').value||today(),type=$('statsType').value;
+ let a=db.entries.filter(e=>inPeriod(e,p,d)&&(!type||e.type===type));
+ let inc=sum(a.filter(e=>!typeOf(e.type).expense)),out=sum(a.filter(e=>typeOf(e.type).expense));
+ $('statIncome').textContent=money(inc);$('statExpense').textContent=money(out);$('statBalance').textContent=money(inc-out);$('statCount').textContent=a.length;
+ $('typeStats').innerHTML=TYPES.filter(t=>!type||t.id===type).map(t=>{let v=a.filter(e=>e.type===t.id);return `<div class="rowline"><span class="color-${t.color}">${t.name}（${v.length}笔）</span><b>${money(sum(v))}</b></div>`}).join('');
+ let cats={};a.forEach(e=>{let k=e.type+'|'+e.category;cats[k]=(cats[k]||0)+e.amount});
+ $('categoryStats').innerHTML=Object.entries(cats).sort((x,y)=>y[1]-x[1]).map(([k,v])=>{let [id,c]=k.split('|'),t=typeOf(id);return `<div class="rowline"><span class="color-${t.color}">${t.name} · ${esc(c)}</span><b>${money(v)}</b></div>`}).join('')||'<div class="empty">暂无分类数据</div>';
+ let clients={};a.filter(e=>e.type==='business'&&e.client).forEach(e=>clients[e.client]=(clients[e.client]||0)+e.amount);
+ $('clientStats').innerHTML=Object.entries(clients).sort((x,y)=>y[1]-x[1]).map(([c,v])=>`<div class="rowline"><span>${esc(c)}</span><b>${money(v)}</b></div>`).join('')||'<div class="empty">暂无客户业务支出数据</div>';
+}
+function renderCategories(){let id=$('manageType').value,t=typeOf(id);$('categoryManage').innerHTML=(db.categories[id]||[]).map((c,i)=>`<div class="rowline"><span class="color-${t.color}">${esc(c)}</span><button class="danger" onclick="removeCategory('${id}',${i})">删除</button></div>`).join('')||'<div class="empty">暂无分类</div>'}
+function addCategory(){let v=$('newCategory').value.trim(),id=$('manageType').value;if(!v)return;if(!db.categories[id].includes(v))db.categories[id].push(v);$('newCategory').value='';persist();renderCategories();updateCategoryOptions()}
+function removeCategory(id,i){let c=db.categories[id][i];if(db.entries.some(e=>e.type===id&&e.category===c)){alert('该分类已有账目，不能删除');return}db.categories[id].splice(i,1);persist();renderCategories();updateCategoryOptions()}
+function exportData(){
+ let data=JSON.stringify(db,null,2),name='bookkeeping_backup_'+today()+'.json';
+ if(window.AndroidApp){let b=new TextEncoder().encode(data),s='';b.forEach(x=>s+=String.fromCharCode(x));AndroidApp.saveFile(name,'application/json',btoa(s));return;}
+ let blob=new Blob([data],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function importData(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.entries)||!x.categories)throw Error();if(!confirm('导入备份将替换当前账目、分类和客户资料，建议先导出备份。确定继续吗？')){ev.target.value='';return;}db=x;TYPES.forEach(t=>{if(!db.categories[t.id])db.categories[t.id]=[...t.defaults]});persist();renderAll();alert('导入成功')}catch(e){alert('文件格式不正确，导入失败')}ev.target.value=''};r.readAsText(f)}
+function exportCSV(){
+ let rows=[['日期','类型','分类','客户','金额','说明'],...db.entries.map(e=>[e.date,typeOf(e.type).name,e.category,e.client||'',e.amount,e.note||''])];
+ let csv='\ufeff'+rows.map(r=>r.map(v=>'\"'+String(v).replace(/\"/g,'\"\"')+'\"').join(',')).join('\r\n'),name='bookkeeping_records_'+today()+'.csv';
+ if(window.AndroidApp){let b=new TextEncoder().encode(csv),s='';b.forEach(x=>s+=String.fromCharCode(x));AndroidApp.saveFile(name,'text/csv;charset=utf-8',btoa(s));return;}
+ let blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function clearAll(){if(!confirm('确定清空全部账目？此操作不可恢复！'))return;db.entries=[];persist();renderAll();alert('账目已清空')}
+function renderAll(){moduleButtons();renderHome();renderList();renderStats();renderCategories()}
+init();
+</script>
+</body></html>
